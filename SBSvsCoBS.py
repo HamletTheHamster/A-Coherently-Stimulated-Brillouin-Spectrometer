@@ -22,7 +22,7 @@ L_split = 1e-2  # Split point where oscillations begin
 L_first = np.logspace(-8, np.log10(L_split), 1000)
 
 # Define dense sampling for the second half
-L_second = np.logspace(np.log10(L_split), 4.5, 5000000)
+L_second = np.logspace(np.log10(L_split), 4.5, 50000)
 
 # Combine the two ranges into one array
 L_values = np.concatenate([L_first, L_second])
