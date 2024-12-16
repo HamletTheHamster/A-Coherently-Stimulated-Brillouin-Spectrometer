@@ -170,4 +170,5 @@ plt.grid(which="major", linestyle="--", alpha=0.5)
 
 plt.tight_layout()
 plt.savefig("plot.png", dpi=600, bbox_inches="tight")
-plt.savefig("plot.svg")
+plt.savefig("plot.svg", bbox_inches="tight")
+plt.savefig("plot.pdf", bbox_inches="tight")
