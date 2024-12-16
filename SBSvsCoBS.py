@@ -16,13 +16,13 @@ P_Pr = 1
 delta_lambda = 0.02e-9
 
 # Split L range into two sections
-L_split = 1e-2  # Split point where oscillations begin (you can tune this)
+L_split = 1e-2  # Split point where oscillations begin
 
 # Define sparse sampling for the first half
-L_first = np.logspace(-8, np.log10(L_split), 1000)  # 100 points in the first half
+L_first = np.logspace(-8, np.log10(L_split), 1000)
 
 # Define dense sampling for the second half
-L_second = np.logspace(np.log10(L_split), 4.5, 500000)  # 5 million points in the second half
+L_second = np.logspace(np.log10(L_split), 4.5, 5000000)
 
 # Combine the two ranges into one array
 L_values = np.concatenate([L_first, L_second])
