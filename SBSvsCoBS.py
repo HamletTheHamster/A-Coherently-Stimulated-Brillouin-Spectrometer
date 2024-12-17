@@ -19,13 +19,14 @@ delta_lambda = 0.02e-9
 L_split = 1e-2  # Split point where oscillations begin
 
 # Define sparse sampling for the first half
-L_first = np.logspace(-8, np.log10(L_split), 1000)
+L_first = np.logspace(-9, np.log10(L_split), 1000)
 
 # Define dense sampling for the second half
-L_second = np.logspace(np.log10(L_split), 4.5, 50000)
+L_second = np.logspace(np.log10(L_split), 4.5, 10000)
 
 # Combine the two ranges into one array
 L_values = np.concatenate([L_first, L_second])
+#L_values = L_second
 
 sincArg = 2 * np.pi * n * delta_lambda * L_values / (lambda_P) ** 2
 sincSquared = np.sinc(sincArg / np.pi) ** 2
@@ -35,29 +36,79 @@ omega_P = 2 * np.pi * 3e8 / (n * lambda_P)
 # SponBS calculation
 SponBSPower = P_P * omega_P * G_B * k_B * T * L_values * Gamma_B / (4 * Omega_B)
 
-# StimBS calculation
-#G = G_B * P_P * L_values
-#G_safe = np.minimum(G, 20)
-G = np.zeros_like(L_values)  # Gain at each length
-StimBSPower = np.zeros_like(L_values)  # Stimulated scattered power
-P_P_depleting = P_P
-for i, L in enumerate(L_values[1:], start=1):  # Start at second length
 
-    # Calculate incremental gain for this small step
-    G = G_B * P_P_depleting * L
+# StimBS calculation - based on Boyd intensities
+from scipy.optimize import fsolve
 
-    # Calculate incremental scattered power
-    dP_scattered = (SponBSPower[i] / np.sqrt(np.pi)) * (np.exp(G) / (G ** 1.5))
+# Given parameters
+I1_0 = 1.0      # Pump intensity at z=0
+I2_L = 1e-12     # Stokes intensity at z=L (the known boundary at the far end)
+g = G_B        # Gain (for simplicity, as you used)
+R = I2_L / I1_0  # Ratio of known boundary intensities
 
-    # Ensure the scattered power doesn't exceed available pump power
-    dP_scattered = min(dP_scattered, P_P_depleting)
+# The transcendental equation from Boyd (Eq. 9.3.31 rearranged):
+# We solve for x = I2(0)/I1(0):
+# R = [ x(1 - x) ] / [ exp(g I1(0) L (1 - x)) - x ]
 
-    # Update StimBS power and deplete pump power
-    StimBSPower[i] = dP_scattered
-    P_P_depleting -= dP_scattered
+def equation(x, L):
+    numerator = x * (1 - x)
+    denominator = np.exp(g * I1_0 * L * (1 - x)) - x
+    return R - (numerator / denominator)
+
+# We'll compute the solution for each length in L_values.
+StimBSPower = np.zeros_like(L_values)
+x_initial_guess = 1e-12
+
+# Loop over L_values and solve the equation to find I2(0)
+for i, L in enumerate(L_values):
+    # Solve the transcendental equation for x = I2(0)/I1(0)
+    x_solution = fsolve(equation, x_initial_guess, args=(L,))
+    x_solution = x_solution[0]
+
+    # Compute I2(0)
+    I2_0 = x_solution * I1_0
+
+    # As in Boyd's figure, we can plot (I2(0)-I2(L))/I1(0) to see pump depletion
+    StimBSPower[i] = (I2_0 - I2_L) / I1_0
+
+    # Next initial guess for x:
+    x_initial_guess = x_solution
+
+# Now StimBSPower holds the fraction of pump energy transferred to Stokes for each length L.
+
+# If you'd like, you can also compute the entire spatial profile I2(z) for a particular L.
+# Let's say we pick a single length L0 from L_values for demonstration:
+L0 = 1.0  # for example, 1 meter
+x_sol = fsolve(equation, 1e-8, args=(L0,))
+x_sol = x_sol[0]
+I2_0_at_L0 = x_sol * I1_0
+
+# Compute I2(z) for z in [0, L0] using Eq. (9.3.30a):
+# I2(z) = [ I2(0)*(I1(0)-I2(0)) ] / [ I1(0)*exp(g*z*(I1(0)-I2(0))) - I2(0) ]
+z_profile = np.linspace(0, L0, 100)
+I2_profile = (I2_0_at_L0 * (I1_0 - I2_0_at_L0)) / (I1_0*np.exp(g*z_profile*(I1_0 - I2_0_at_L0)) - I2_0_at_L0)
 
 
-#StimBSPower = (SponBSPower / np.sqrt(np.pi)) * (np.exp(G_safe) / (G_safe ** 1.5))
+
+# dP_scattered = np.zeros_like(L_values)
+# StimBSPower = np.zeros_like(L_values)  # Stimulated scattered power
+# P_P_depleting = P_P
+# for i, L in enumerate(L_values[1:], start=1):  # Start at second length
+#
+#     # Calculate incremental gain for this small step
+#     G = G_B * P_P_depleting * L
+#
+#     # Calculate incremental scattered power
+#     dP_scattered[i] = (SponBSPower[i] / np.sqrt(np.pi)) * (np.exp(G) / (G ** 1.5))
+#
+#     # Update StimBS power and deplete pump power
+#     StimBSPower[i] = dP_scattered[i]
+#     P_P_depleting -= dP_scattered[i]
+
+# G = G_B * P_P * L_values
+# G_sat = 20
+# StimBSPower = SponBSPower * (np.exp(G) / (1 + G / G_sat))
+
 
 # CoBS calculation
 CoBSPower = 0.25 * (G_B * L_values) ** 2 * P_P * P_S * P_Pr * sincSquared
@@ -128,24 +179,16 @@ plt.loglog(
     color="lightpink",
 )
 plt.loglog(
-    L_values[:20000],
-    SponBSPower[:20000],
+    L_values,
+    SponBSPower,
     label="SponBS Scattered Power",
     linewidth=2,
     linestyle="--",
     color="royalblue",
 )
 plt.loglog(
-    L_values[40000:],
-    SponBSPower[40000:],
-    label=None,
-    linewidth=2,
-    linestyle="--",
-    color="royalblue",
-)
-plt.loglog(
-    L_values[20000:39000],
-    StimBSPower[20000:39000],
+    L_values,
+    StimBSPower,
     label="StimBS Scattered Power",
     linewidth=2,
     linestyle="--",
