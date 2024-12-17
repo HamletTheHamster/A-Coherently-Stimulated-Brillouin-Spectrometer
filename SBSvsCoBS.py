@@ -32,8 +32,34 @@ sincSquared = np.sinc(sincArg / np.pi) ** 2
 
 omega_P = 2 * np.pi * 3e8 / (n * lambda_P)
 
-# SBS and CoBS calculations
-SBSPower = P_P * omega_P * G_B * k_B * T * L_values * Gamma_B / (4 * Omega_B)
+# SponBS calculation
+SponBSPower = P_P * omega_P * G_B * k_B * T * L_values * Gamma_B / (4 * Omega_B)
+
+# StimBS calculation
+#G = G_B * P_P * L_values
+#G_safe = np.minimum(G, 20)
+G = np.zeros_like(L_values)  # Gain at each length
+StimBSPower = np.zeros_like(L_values)  # Stimulated scattered power
+P_P_depleting = P_P
+for i, L in enumerate(L_values[1:], start=1):  # Start at second length
+
+    # Calculate incremental gain for this small step
+    G = G_B * P_P_depleting * L
+
+    # Calculate incremental scattered power
+    dP_scattered = (SponBSPower[i] / np.sqrt(np.pi)) * (np.exp(G) / (G ** 1.5))
+
+    # Ensure the scattered power doesn't exceed available pump power
+    dP_scattered = min(dP_scattered, P_P_depleting)
+
+    # Update StimBS power and deplete pump power
+    StimBSPower[i] = dP_scattered
+    P_P_depleting -= dP_scattered
+
+
+#StimBSPower = (SponBSPower / np.sqrt(np.pi)) * (np.exp(G_safe) / (G_safe ** 1.5))
+
+# CoBS calculation
 CoBSPower = 0.25 * (G_B * L_values) ** 2 * P_P * P_S * P_Pr * sincSquared
 
 # Compute local average for CoBS envelope
@@ -99,15 +125,31 @@ plt.loglog(
     CoBSPower,
     label="CoBS Scattered Power",
     linewidth=2,
-    color="darkorange",
+    color="lightpink",
 )
 plt.loglog(
-    L_values,
-    SBSPower,
-    label="SBS Scattered Power",
+    L_values[:20000],
+    SponBSPower[:20000],
+    label="SponBS Scattered Power",
     linewidth=2,
     linestyle="--",
-    color="blue",
+    color="royalblue",
+)
+plt.loglog(
+    L_values[40000:],
+    SponBSPower[40000:],
+    label=None,
+    linewidth=2,
+    linestyle="--",
+    color="royalblue",
+)
+plt.loglog(
+    L_values[20000:39000],
+    StimBSPower[20000:39000],
+    label="StimBS Scattered Power",
+    linewidth=2,
+    linestyle="--",
+    color="teal",
 )
 plt.loglog(
     L_values,
@@ -115,20 +157,27 @@ plt.loglog(
     label="CoBS Envelope",
     linewidth=2,
     linestyle=":",
-    color="red",
+    color="crimson",
 )
 
 L_coherence = 9.55e3
 plt.axvline(
     L_coherence,
-    color="gray",
+    color="darkgray",
     linewidth=2,
     label="10 kHz Laser Coherence Length"
 )
+# gain_transition = 33.33
+# plt.axvline(
+#     gain_transition,
+#     color="gray",
+#     linewidth=2,
+#     label="low-gain high-gain transition"
+# )
 
 plt.xlabel("Length (m)", fontsize=12)
 plt.ylabel("Scattered Power (W)", fontsize=12)
-plt.title("Comparison of SBS and CoBS Scattered Power vs Length", fontsize=14)
+plt.title("Comparison of SponBS, StimBS, and CoBS Scattered Power vs Length", fontsize=14)
 plt.legend()
 
 ax = plt.gca()
