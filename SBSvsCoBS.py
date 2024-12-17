@@ -22,7 +22,7 @@ L_split = 1e-2  # Split point where oscillations begin
 L_first = np.logspace(-9, np.log10(L_split), 1000)
 
 # Define dense sampling for the second half
-L_second = np.logspace(np.log10(L_split), 4.5, 10000)
+L_second = np.logspace(np.log10(L_split), 4.5, 1000000)
 
 # Combine the two ranges into one array
 L_values = np.concatenate([L_first, L_second])
@@ -42,7 +42,7 @@ from scipy.optimize import fsolve
 
 # Given parameters
 I1_0 = 1.0      # Pump intensity at z=0
-I2_L = 1e-12     # Stokes intensity at z=L (the known boundary at the far end)
+I2_L = 1e-12    # Stokes intensity at z=L (the known boundary at the far end)
 g = G_B        # Gain (for simplicity, as you used)
 R = I2_L / I1_0  # Ratio of known boundary intensities
 
@@ -57,10 +57,15 @@ def equation(x, L):
 
 # We'll compute the solution for each length in L_values.
 StimBSPower = np.zeros_like(L_values)
-x_initial_guess = 1e-12
+x_initial_guess = I2_L
 
 # Loop over L_values and solve the equation to find I2(0)
-for i, L in enumerate(L_values):
+for i, L in enumerate(tqdm(
+    L_values,
+    desc="Solving StimBS",
+    ncols=80,
+    bar_format="{l_bar}{bar} {elapsed} Remaining: {remaining}",
+    )):
     # Solve the transcendental equation for x = I2(0)/I1(0)
     x_solution = fsolve(equation, x_initial_guess, args=(L,))
     x_solution = x_solution[0]
@@ -89,27 +94,6 @@ z_profile = np.linspace(0, L0, 100)
 I2_profile = (I2_0_at_L0 * (I1_0 - I2_0_at_L0)) / (I1_0*np.exp(g*z_profile*(I1_0 - I2_0_at_L0)) - I2_0_at_L0)
 
 
-
-# dP_scattered = np.zeros_like(L_values)
-# StimBSPower = np.zeros_like(L_values)  # Stimulated scattered power
-# P_P_depleting = P_P
-# for i, L in enumerate(L_values[1:], start=1):  # Start at second length
-#
-#     # Calculate incremental gain for this small step
-#     G = G_B * P_P_depleting * L
-#
-#     # Calculate incremental scattered power
-#     dP_scattered[i] = (SponBSPower[i] / np.sqrt(np.pi)) * (np.exp(G) / (G ** 1.5))
-#
-#     # Update StimBS power and deplete pump power
-#     StimBSPower[i] = dP_scattered[i]
-#     P_P_depleting -= dP_scattered[i]
-
-# G = G_B * P_P * L_values
-# G_sat = 20
-# StimBSPower = SponBSPower * (np.exp(G) / (1 + G / G_sat))
-
-
 # CoBS calculation
 CoBSPower = 0.25 * (G_B * L_values) ** 2 * P_P * P_S * P_Pr * sincSquared
 
@@ -130,7 +114,7 @@ def compute_local_avg_for_batch(L_batch, sincSquared, L_values, window_fraction,
             delta_L = window_fraction * L
             mask = (L_values >= L - delta_L) & (L_values <= L + delta_L)
             results.append(np.mean(sincSquared[mask]))
-            if i % update_step == 0:  # Update progress bar every `update_step` iterations
+            if i % update_step == 0:  # Update progress bar every update_step iterations
                 inner_pbar.update(update_step)
         inner_pbar.update(len(L_batch) % update_step)  # Final update for leftover iterations
     return results
@@ -187,11 +171,11 @@ plt.loglog(
     color="royalblue",
 )
 plt.loglog(
-    L_values,
-    StimBSPower,
+    L_values[400:],
+    StimBSPower[400:],
     label="StimBS Scattered Power",
     linewidth=2,
-    linestyle="--",
+    linestyle="-.",
     color="teal",
 )
 plt.loglog(
