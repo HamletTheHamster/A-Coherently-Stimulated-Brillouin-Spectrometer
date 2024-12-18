@@ -42,22 +42,22 @@ from scipy.optimize import fsolve
 
 # Given parameters
 I1_0 = 1.0      # Pump intensity at z=0
-#I2_L = 1e-12    # Stokes intensity at z=L (the known boundary at the far end)
+I2_L = 1e-12    # Stokes intensity at z=L (the known boundary at the far end)
 g = G_B        # Gain
-#r = I2_L / I1_0  # Ratio of known boundary intensities
+r = I2_L / I1_0  # Ratio of known boundary intensities
 
 # The transcendental equation from Boyd (Eq. 9.3.31 rearranged):
 # We solve for x = I2(0)/I1(0):
 # r = [ x(1 - x) ] / [ exp(g I1(0) L (1 - x)) - x ]
 
-def equation(x, L, r):
+def equation(x, L):
     numerator = x * (1 - x)
     denominator = np.exp(g * I1_0 * L * (1 - x)) - x
     return r - (numerator / denominator)
 
 # We'll compute the solution for each length in L_values.
 StimBSPower = np.zeros_like(L_values)
-x_initial_guess = SponBSPower[0]
+x_initial_guess = I2_L
 
 # Loop over L_values and solve the equation to find I2(0)
 for i, L in enumerate(tqdm(
@@ -66,19 +66,15 @@ for i, L in enumerate(tqdm(
     ncols=80,
     bar_format="{l_bar}{bar} {elapsed} Remaining: {remaining}",
     )):
-
-    # Find I2_L, latent Stokes power by L = SponBSPower
-    I2_L = P_P * omega_P * G_B * k_B * T * L * Gamma_B / (4 * Omega_B)
-
-    r = I2_L / I1_0 # Ratio of known boundary intensities
-
     # Solve the transcendental equation for x = I2(0)/I1(0)
-    x_solution = fsolve(equation, x_initial_guess, args=(L,r,))
+    x_solution = fsolve(equation, x_initial_guess, args=(L,))
     x_solution = x_solution[0]
 
     # Compute I2(0)
     I2_0 = x_solution * I1_0
-    StimBSPower[i] = I2_0
+
+    # Scattered power is amplification of Stokes seed (sig - seed)
+    StimBSPower[i] = I2_0 - I2_L
 
     # As in Boyd's figure, we can plot (I2(0)-I2(L))/I1(0) to see pump depletion
     #StimBSPower[i] = (I2_0 - I2_L) / I1_0
@@ -88,17 +84,17 @@ for i, L in enumerate(tqdm(
 
 # Now StimBSPower holds the fraction of pump energy transferred to Stokes for each length L.
 
-# # If you'd like, you can also compute the entire spatial profile I2(z) for a particular L.
-# # Let's say we pick a single length L0 from L_values for demonstration:
-# L0 = 1.0  # for example, 1 meter
-# x_sol = fsolve(equation, 1e-8, args=(L0,))
-# x_sol = x_sol[0]
-# I2_0_at_L0 = x_sol * I1_0
-#
-# # Compute I2(z) for z in [0, L0] using Eq. (9.3.30a):
-# # I2(z) = [ I2(0)*(I1(0)-I2(0)) ] / [ I1(0)*exp(g*z*(I1(0)-I2(0))) - I2(0) ]
-# z_profile = np.linspace(0, L0, 100)
-# I2_profile = (I2_0_at_L0 * (I1_0 - I2_0_at_L0)) / (I1_0*np.exp(g*z_profile*(I1_0 - I2_0_at_L0)) - I2_0_at_L0)
+# If you'd like, you can also compute the entire spatial profile I2(z) for a particular L.
+# Let's say we pick a single length L0 from L_values for demonstration:
+L0 = 1.0  # for example, 1 meter
+x_sol = fsolve(equation, 1e-8, args=(L0,))
+x_sol = x_sol[0]
+I2_0_at_L0 = x_sol * I1_0
+
+# Compute I2(z) for z in [0, L0] using Eq. (9.3.30a):
+# I2(z) = [ I2(0)*(I1(0)-I2(0)) ] / [ I1(0)*exp(g*z*(I1(0)-I2(0))) - I2(0) ]
+z_profile = np.linspace(0, L0, 100)
+I2_profile = (I2_0_at_L0 * (I1_0 - I2_0_at_L0)) / (I1_0*np.exp(g*z_profile*(I1_0 - I2_0_at_L0)) - I2_0_at_L0)
 
 
 # CoBS calculation
@@ -178,8 +174,8 @@ plt.loglog(
     color="royalblue",
 )
 plt.loglog(
-    L_values,
-    StimBSPower,
+    L_values[400:],
+    StimBSPower[400:],
     label="StimBS Scattered Power",
     linewidth=2,
     linestyle="-.",
