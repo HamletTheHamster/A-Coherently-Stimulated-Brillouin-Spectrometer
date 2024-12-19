@@ -22,7 +22,7 @@ L_split = 1e-2  # Split point where oscillations begin
 L_first = np.logspace(-9, np.log10(L_split), 1000)
 
 # Define dense sampling for the second half
-L_second = np.logspace(np.log10(L_split), 4.5, 100000)
+L_second = np.logspace(np.log10(L_split), 4.5, 10000000)
 
 # Combine the two ranges into one array
 L_values = np.concatenate([L_first, L_second])
@@ -167,6 +167,14 @@ plt.loglog(
 )
 plt.loglog(
     L_values,
+    CoBS_Envelope,
+    label="CoBS Envelope",
+    linewidth=2,
+    linestyle=":",
+    color="crimson",
+)
+plt.loglog(
+    L_values,
     SponBSPower,
     label="SponBS Scattered Power",
     linewidth=2,
@@ -180,14 +188,6 @@ plt.loglog(
     linewidth=2,
     linestyle="-.",
     color="teal",
-)
-plt.loglog(
-    L_values,
-    CoBS_Envelope,
-    label="CoBS Envelope",
-    linewidth=2,
-    linestyle=":",
-    color="crimson",
 )
 
 L_coherence = 9.55e3
@@ -244,6 +244,7 @@ def every_other_label(value, pos):
 
 ax.xaxis.set_major_formatter(ticker.FuncFormatter(every_other_label))
 ax.yaxis.set_major_formatter(ticker.FuncFormatter(every_other_label))
+ax.tick_params(which='both', direction='in')
 
 plt.grid(which="major", linestyle="--", alpha=0.5)
 
