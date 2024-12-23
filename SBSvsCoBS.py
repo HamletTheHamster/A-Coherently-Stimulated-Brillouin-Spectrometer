@@ -16,13 +16,13 @@ from tqdm import tqdm
 # delta_lambda = 0.02e-9
 
 # Parameters CS2 from memory
-n = 2.5
-G_B = 6.
+n = 1.59
+G_B = 1.65
 Omega_B = 2 * np.pi * 2.5e9
 lambda_P = 1.549e-6
 k_B = 1.38e-23
 T = 295
-Gamma_B = 2 * np.pi * 50e6
+Gamma_B = 2 * np.pi * 100e6
 P_P = 1
 P_S = 1
 P_Pr = 1
