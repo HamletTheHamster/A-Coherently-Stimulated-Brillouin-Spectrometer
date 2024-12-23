@@ -2,14 +2,27 @@ import numpy as np
 from joblib import Parallel, delayed
 from tqdm import tqdm
 
-# Parameters
-n = 1.48
-G_B = 0.6
-Omega_B = 2 * np.pi * 9.18e9
+# # Parameters
+# n = 1.48
+# G_B = 0.6
+# Omega_B = 2 * np.pi * 9.18e9
+# lambda_P = 1.549e-6
+# k_B = 1.38e-23
+# T = 295
+# Gamma_B = 2 * np.pi * 80e6
+# P_P = 1
+# P_S = 1
+# P_Pr = 1
+# delta_lambda = 0.02e-9
+
+# Parameters CS2 from memory
+n = 2.5
+G_B = 6.
+Omega_B = 2 * np.pi * 2.5e9
 lambda_P = 1.549e-6
 k_B = 1.38e-23
 T = 295
-Gamma_B = 2 * np.pi * 80e6
+Gamma_B = 2 * np.pi * 50e6
 P_P = 1
 P_S = 1
 P_Pr = 1
@@ -22,7 +35,7 @@ L_split = 1e-2  # Split point where oscillations begin
 L_first = np.logspace(-9, np.log10(L_split), 1000)
 
 # Define dense sampling for the second half
-L_second = np.logspace(np.log10(L_split), 4.5, 10000000)
+L_second = np.logspace(np.log10(L_split), 4.5, 100000)
 
 # Combine the two ranges into one array
 L_values = np.concatenate([L_first, L_second])
