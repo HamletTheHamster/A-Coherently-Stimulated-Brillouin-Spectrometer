@@ -15,7 +15,7 @@ from tqdm import tqdm
 # P_Pr = 1
 # delta_lambda = 0.02e-9
 
-# Parameters CS2 from memory
+# Parameters CS2
 n = 1.59
 G_B = 1.65
 Omega_B = 2 * np.pi * 2.5e9
